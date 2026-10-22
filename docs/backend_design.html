@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>IULMS Backend — Design Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=PT+Serif:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --primary: #1E3A5F;
+    --primary-light: #2E5A8F;
+    --primary-dark: #13243B;
+    --accent: #C9A961;
+    --accent-dark: #A8873F;
+    --burgundy: #7B2D3E;
+    --cream: #FAF8F3;
+    --ink: #1A1A2E;
+    --slate: #5B6B7F;
+    --success: #2E7D52;
+    --warning: #D4882A;
+    --danger: #B3261E;
+    --divider: #E5E0D5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: linear-gradient(135deg, #1A1A2E 0%, #16243E 100%);
+    font-family: 'PT Serif', Georgia, serif;
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 50px 28px 70px;
+  }
+  h1.title {
+    font-family: 'Playfair Display', serif;
+    color: #fff;
+    font-size: 44px;
+    font-weight: 800;
+    text-align: center;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  p.sub {
+    color: var(--accent);
+    text-align: center;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 48px;
+  }
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+  }
+  .section {
+    background: var(--cream);
+    border-radius: 22px;
+    padding: 32px 36px 36px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.32);
+  }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--divider);
+    padding-bottom: 14px;
+  }
+  .section-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--accent-dark);
+    line-height: 1;
+  }
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .section-sub {
+    margin-left: auto;
+    font-family: 'PT Serif', serif;
+    font-size: 12px;
+    color: var(--slate);
+    font-style: italic;
+  }
+
+  /* === Architecture diagram === */
+  .arch {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .arch-row {
+    display: flex;
+    gap: 14px;
+    align-items: stretch;
+  }
+  .arch-layer {
+    flex: 1;
+    background: #fff;
+    border: 1.5px solid var(--divider);
+    border-radius: 14px;
+    padding: 16px 18px;
+    box-shadow: 0 6px 18px rgba(30,58,95,0.08);
+  }
+  .arch-layer.full { flex: 1; }
+  .layer-label {
+    font-family: 'Playfair Display', serif;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: var(--accent-dark);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--divider);
+  }
+  .layer-content {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .node {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: #fff;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-family: 'PT Serif', serif;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1.5px solid var(--accent);
+    flex: 1;
+    min-width: 110px;
+    text-align: center;
+  }
+  .node.cream {
+    background: #fff;
+    color: var(--ink);
+    border: 1.5px solid var(--primary);
+  }
+  .node.gold {
+    background: var(--accent);
+    color: var(--primary-dark);
+    border: 1.5px solid var(--accent-dark);
+  }
+  .node.burgundy {
+    background: var(--burgundy);
+    color: #fff;
+    border: 1.5px solid var(--accent);
+  }
+  .node.success {
+    background: var(--success);
+    color: #fff;
+    border: 1.5px solid var(--accent);
+  }
+  .node .node-sub {
+    display: block;
+    font-size: 10px;
+    font-weight: 400;
+    opacity: 0.85;
+    margin-top: 2px;
+    font-style: italic;
+  }
+  .arrow-down {
+    text-align: center;
+    color: var(--accent-dark);
+    font-size: 22px;
+    line-height: 1;
+    margin: -4px 0;
+  }
+
+  /* === ER diagram === */
+  .er-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .er-table {
+    background: #fff;
+    border: 1.5px solid var(--primary);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(30,58,95,0.1);
+  }
+  .er-table.core { border-color: var(--accent-dark); border-width: 2px; }
+  .er-table.aux { border-color: var(--slate); }
+  .er-table .er-head {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: #fff;
+    padding: 8px 12px;
+    font-family: 'Playfair Display', serif;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    border-bottom: 2px solid var(--accent);
+  }
+  .er-table.aux .er-head {
+    background: linear-gradient(135deg, var(--slate) 0%, #7A8DA1 100%);
+  }
+  .er-table.core .er-head {
+    background: linear-gradient(135deg, var(--burgundy) 0%, #933C50 100%);
+  }
+  .er-table .er-row {
+    padding: 5px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--ink);
+    border-bottom: 1px solid var(--divider);
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .er-table .er-row:last-child { border-bottom: none; }
+  .er-table .er-row.pk { font-weight: 700; color: var(--primary); }
+  .er-table .er-row.fk { color: var(--burgundy); }
+  .er-table .er-row .er-type {
+    color: var(--slate);
+    font-style: italic;
+  }
+  .er-legend {
+    margin-top: 16px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 11.5px;
+    color: var(--slate);
+    font-family: 'PT Serif', serif;
+  }
+  .er-legend-item { display: flex; align-items: center; gap: 6px; }
+  .er-legend-swatch {
+    width: 14px; height: 14px; border-radius: 4px; border: 2px solid;
+  }
+  .er-relations {
+    margin-top: 18px;
+    background: #fff;
+    border: 1px solid var(--divider);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink);
+    line-height: 1.7;
+  }
+  .er-relations .rel-line { display: flex; gap: 10px; }
+  .er-relations .rel-arrow { color: var(--accent-dark); font-weight: 700; }
+
+  /* === Sequence diagram === */
+  .seq {
+    background: #fff;
+    border: 1px solid var(--divider);
+    border-radius: 14px;
+    padding: 20px 24px;
+    overflow-x: auto;
+  }
+  .seq-lanes {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0;
+    min-width: 820px;
+    position: relative;
+  }
+  .seq-lane-head {
+    text-align: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--primary);
+    padding: 8px 4px 12px;
+    border-bottom: 2px solid var(--primary);
+    margin-bottom: 12px;
+  }
+  .seq-lane-head .lane-icon {
+    display: block;
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+  .seq-step {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  .seq-num {
+    background: var(--primary);
+    color: var(--accent);
+    border-radius: 50%;
+    width: 26px; height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .seq-desc {
+    background: var(--cream);
+    border: 1px solid var(--divider);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: 'PT Serif', serif;
+    font-size: 11.5px;
+    color: var(--ink);
+    line-height: 1.4;
+  }
+  .seq-desc code {
+    background: var(--primary-dark);
+    color: var(--accent);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+  }
+  .seq-desc .seq-arrow {
+    color: var(--accent-dark);
+    font-weight: 700;
+    margin: 0 4px;
+  }
+  .seq-desc strong { color: var(--burgundy); font-weight: 700; }
+  .seq-desc.tx {
+    border-left: 4px solid var(--success);
+    background: rgba(46,125,82,0.06);
+  }
+  .seq-desc.check {
+    border-left: 4px solid var(--warning);
+    background: rgba(212,136,42,0.06);
+  }
+  .seq-desc.fail {
+    border-left: 4px solid var(--danger);
+    background: rgba(179,38,30,0.06);
+  }
+
+  /* === File tree === */
+  .tree {
+    background: var(--primary-dark);
+    border-radius: 14px;
+    padding: 22px 26px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: #c9d4e5;
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+  .tree .tree-dir { color: var(--accent); font-weight: 700; }
+  .tree .tree-file { color: #e8eef7; }
+  .tree .tree-comment { color: #7A8DA1; font-style: italic; }
+  .tree .tree-line { white-space: pre; }
+
+  /* === Stats footer === */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-top: 24px;
+  }
+  .stat {
+    background: #fff;
+    border: 1px solid var(--divider);
+    border-radius: 12px;
+    padding: 16px 18px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(30,58,95,0.08);
+  }
+  .stat .stat-v {
+    font-family: 'Playfair Display', serif;
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--primary);
+    line-height: 1;
+  }
+  .stat .stat-l {
+    font-family: 'PT Serif', serif;
+    font-size: 11.5px;
+    color: var(--slate);
+    margin-top: 6px;
+  }
+
+  .footer {
+    text-align: center;
+    color: rgba(255,255,255,0.55);
+    font-family: 'PT Serif', serif;
+    font-size: 11px;
+    margin-top: 48px;
+    line-height: 1.6;
+  }
+  .footer .pal {
+    margin-top: 6px;
+  }
+  .footer .pal span { font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1 class="title">IULMS Backend — Design Overview</h1>
+<p class="sub">Node.js · Express · SQLite · JWT · Bcrypt · Production-Grade REST API</p>
+
+<div class="container">
+
+  <!-- ============== 1. ARCHITECTURE ============== -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">01</span>
+      <h2 class="section-title">Layered Architecture</h2>
+      <span class="section-sub">Request flow: client → security → routes → services → SQL</span>
+    </div>
+
+    <div class="arch">
+
+      <!-- Layer 1: Client -->
+      <div class="arch-row">
+        <div class="arch-layer full">
+          <div class="layer-label">① Client</div>
+          <div class="layer-content">
+            <div class="node cream">📱 Flutter Mobile App<br><span class="node-sub">Android · iOS · sends Bearer JWT</span></div>
+            <div class="node cream">🌐 Browser / Postman<br><span class="node-sub">CORS allow-list</span></div>
+            <div class="node cream">⚙ Admin CLI<br><span class="node-sub">migrate · seed · health probes</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow-down">↓ HTTPS</div>
+
+      <!-- Layer 2: Express middleware stack -->
+      <div class="arch-row">
+        <div class="arch-layer full">
+          <div class="layer-label">② Express Middleware Stack (app.js)</div>
+          <div class="layer-content">
+            <div class="node">🛡 Helmet<br><span class="node-sub">security headers</span></div>
+            <div class="node">🌐 CORS<br><span class="node-sub">allow-list of origins</span></div>
+            <div class="node">📦 Body Parser<br><span class="node-sub">JSON · URL-encoded</span></div>
+            <div class="node">🗜 Compression<br><span class="node-sub">gzip responses</span></div>
+            <div class="node">📝 Morgan<br><span class="node-sub">HTTP request log</span></div>
+            <div class="node">⏱ Rate Limit<br><span class="node-sub">300 req / 15 min / IP (prod)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow-down">↓</div>
+
+      <!-- Layer 3: Auth + validation -->
+      <div class="arch-row">
+        <div class="arch-layer full">
+          <div class="layer-label">③ Cross-cutting Middleware</div>
+          <div class="layer-content">
+            <div class="node burgundy">🔐 requireAuth<br><span class="node-sub">verifies Bearer JWT · 401 if invalid</span></div>
+            <div class="node burgundy">👤 requireRole('admin')<br><span class="node-sub">requireAdmin · requireLibrarianOrAdmin · ownerOrStaff</span></div>
+            <div class="node burgundy">✓ validate<br><span class="node-sub">express-validator result · 400 if invalid</span></div>
+            <div class="node burgundy">⚠ errorHandler<br><span class="node-sub">AppError + SQLite constraint mapping</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow-down">↓ routes/</div>
+
+      <!-- Layer 4: Routes -->
+      <div class="arch-row">
+        <div class="arch-layer full">
+          <div class="layer-label">④ Routes (routes/*.js — ~40 endpoints)</div>
+          <div class="layer-content">
+            <div class="node cream">/api/auth/*<br><span class="node-sub">login · register · me · users CRUD</span></div>
+            <div class="node cream">/api/books/*<br><span class="node-sub">CRUD · search · categories · public catalog</span></div>
+            <div class="node cream">/api/loans/*<br><span class="node-sub">issue · return · my · overdue</span></div>
+            <div class="node cream">/api/notifications/*<br><span class="node-sub">inbox · mark read · delete</span></div>
+            <div class="node cream">/api/activity-log<br><span class="node-sub">role-scoped audit trail</span></div>
+            <div class="node cream">/api/admin/*<br><span class="node-sub">services · steps · contact inbox · info</span></div>
+            <div class="node cream">/api/reports/*<br><span class="node-sub">dashboard · inventory · CSV export</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow-down">↓ services/</div>
+
+      <!-- Layer 5: Services -->
+      <div class="arch-row">
+        <div class="arch-layer full">
+          <div class="layer-label">⑤ Services (services/*.js — business logic + transactions)</div>
+          <div class="layer-content">
+            <div class="node gold">🔑 authService<br><span class="node-sub">JWT sign · bcrypt verify · profile update</span></div>
+            <div class="node gold">📚 bookService<br><span class="node-sub">CRUD · ISBN unique · delete-guard</span></div>
+            <div class="node gold">📖 loanService<br><span class="node-sub">transactional issue/return · CAS on qty</span></div>
+            <div class="node gold">🔔 auxServices<br><span class="node-sub">notifications · activity log</span></div>
+            <div class="node gold">🏫 libraryInfoService<br><span class="node-sub">services/steps CRUD · contact inbox</span></div>
+            <div class="node gold">📊 reportService<br><span class="node-sub">dashboard · popular · CSV</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow-down">↓ models/</div>
+
+      <!-- Layer 6: Models -->
+      <div class="arch-row">
+        <div class="arch-layer full">
+          <div class="layer-label">⑥ Models (models/*.js — pure SQL data access)</div>
+          <div class="layer-content">
+            <div class="node success">userModel<br><span class="node-sub">CRUD · byUsername/Email/StudentId</span></div>
+            <div class="node success">bookModel + categoryModel<br><span class="node-sub">search · popularBooks · CAS decrement/increment</span></div>
+            <div class="node success">loanModel<br><span class="node-sub">search · reconcileOverdue · recent</span></div>
+            <div class="node success">auxModels<br><span class="node-sub">Notification · ActivityLog · Setting</span></div>
+            <div class="node success">libraryModels<br><span class="node-sub">Service · Step · ContactMessage</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow-down">↓ src/db/connection.js</div>
+
+      <!-- Layer 7: DB -->
+      <div class="arch-row">
+        <div class="arch-layer full">
+          <div class="layer-label">⑦ Database (better-sqlite3 · synchronous)</div>
+          <div class="layer-content">
+            <div class="node">🗄 SQLite File<br><span class="node-sub">iulms.db · WAL mode</span></div>
+            <div class="node">🔑 PRAGMA foreign_keys=ON<br><span class="node-sub">FK enforcement per-connection</span></div>
+            <div class="node">📋 10 Tables<br><span class="node-sub">users · books · loans · notifications · activity_logs · settings · categories · library_services · library_steps · contact_messages</span></div>
+            <div class="node">⚡ Indexes<br><span class="node-sub">on FK columns · status · created_at</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============== 2. ER DIAGRAM ============== -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">02</span>
+      <h2 class="section-title">Database Schema (ER Diagram)</h2>
+      <span class="section-sub">10 tables · FK enforcement ON · CHECK constraints</span>
+    </div>
+
+    <div class="er-grid">
+
+      <!-- Core entities -->
+      <div class="er-table core">
+        <div class="er-head">users</div>
+        <div class="er-row pk"><span>id</span><span class="er-type">INTEGER PK AI</span></div>
+        <div class="er-row"><span>full_name</span><span class="er-type">TEXT</span></div>
+        <div class="er-row"><span>username</span><span class="er-type">TEXT UNIQUE</span></div>
+        <div class="er-row"><span>email</span><span class="er-type">TEXT UNIQUE</span></div>
+        <div class="er-row"><span>password_hash</span><span class="er-type">TEXT (bcrypt)</span></div>
+        <div class="er-row"><span>role</span><span class="er-type">CHECK(admin|lib|stud)</span></div>
+        <div class="er-row"><span>student_id</span><span class="er-type">TEXT</span></div>
+        <div class="er-row"><span>department</span><span class="er-type">TEXT</span></div>
+        <div class="er-row"><span>created_at</span><span class="er-type">INTEGER ms</span></div>
+        <div class="er-row"><span>is_active</span><span class="er-type">INTEGER 0|1</span></div>
+      </div>
+
+      <div class="er-table core">
+        <div class="er-head">books</div>
+        <div class="er-row pk"><span>id</span><span class="er-type">INTEGER PK AI</span></div>
+        <div class="er-row"><span>isbn</span><span class="er-type">TEXT UNIQUE</span></div>
+        <div class="er-row"><span>title</span><span class="er-type">TEXT</span></div>
+        <div class="er-row"><span>author</span><span class="er-type">TEXT</span></div>
+        <div class="er-row fk"><span>category_id</span><span class="er-type">→ categories</span></div>
+        <div class="er-row"><span>publisher, year</span><span class="er-type">TEXT, INT</span></div>
+        <div class="er-row"><span>edition, shelf</span><span class="er-type">TEXT, TEXT</span></div>
+        <div class="er-row"><span>description</span><span class="er-type">TEXT</span></div>
+        <div class="er-row"><span>total_quantity</span><span class="er-type">CHECK ≥ 0</span></div>
+        <div class="er-row"><span>available_quantity</span><span class="er-type">CHECK ≤ total</span></div>
+        <div class="er-row"><span>cover_path</span><span class="er-type">TEXT</span></div>
+        <div class="er-row"><span>created_at, updated_at</span><span class="er-type">INTEGER ms</span></div>
+      </div>
+
+      <div class="er-table core">
+        <div class="er-head">loans</div>
+        <div class="er-row pk"><span>id</span><span class="er-type">INTEGER PK AI</span></div>
+        <div class="er-row fk"><span>user_id</span><span class="er-type">→ users</span></div>
+        <div class="er-row fk"><span>book_id</span><span class="er-type">→ books</span></div>
+        <div class="er-row fk"><span>issued_by</span><span class="er-type">→ users (librarian)</span></div>
+        <div class="er-row"><span>issue_date</span><span class="er-type">INTEGER ms</span></div>
+        <div class="er-row"><span>due_date</span><span class="er-type">INTEGER ms</span></div>
+        <div class="er-row"><span>return_date</span><span class="er-type">INTEGER ms NULL</span></div>
+        <div class="er-row"><span>status</span><span class="er-type">CHECK(active|returned|overdue)</span></div>
+      </div>
+
+      <div class="er-table core">
+        <div class="er-head">categories</div>
+        <div class="er-row pk"><span>id</span><span class="er-type">INTEGER PK AI</span></div>
+        <div class="er-row"><span>name</span><span class="er-type">TEXT UNIQUE</span></div>
+        <div class="er-row"><span>description</span><span class="er-type">TEXT</span></div>
+      </div>
+
+      <!-- Auxiliary entities -->
+      <div class="er-table aux">
+        <div class="er-head">notifications</div>
+        <div class="er-row pk"><span>id</span><span class="er-type">INTEGER PK AI</span></div>
+        <div class="er-row fk"><span>user_id</span><span class="er-type">→ users</span></div>
+        <div class="er-row"><span>title, message</span><span class="er-type">TEXT, TEXT</span></div>
+        <div class="er-row"><span>created_at</span><span class="er-type">INTEGER ms</span></div>
+        <div class="er-row"><span>is_read</span><span class="er-type">INTEGER 0|1</span></div>
+      </div>
+
+      <div class="er-table aux">
+        <div class="er-head">activity_logs</div>
+        <div class="er-row pk"><span>id</span><span class="er-type">INTEGER PK AI</span></div>
+        <div class="er-row fk"><span>user_id</span><span class="er-type">→ users (nullable)</span></div>
+        <div class="er-row"><span>action</span><span class="er-type">TEXT (27 keys)</span></div>
+        <div class="er-row"><span>details</span><span class="er-type">TEXT</span></div>
+        <div class="er-row"><span>created_at</span><span class="er-type">INTEGER ms</span></div>
+      </div>
+
+      <div class="er-table aux">
+        <div class="er-head">settings</div>
+        <div class="er-row pk"><span>id</span><span class="er-type">INTEGER PK AI</span></div>
+        <div class="er-row"><span>setting_key</span><span class="er-type">TEXT UNIQUE</span></div>
+        <div class="er-row"><span>setting_value</span><span class="er-type">TEXT</span></div>
+      </div>
+
+      <div class="er-table aux">
+        <div class="er-head">library_services</div>
+        <div class="er-row pk"><span>id</span><span class="er-type">INTEGER PK AI</span></div>
+        <div class="er-row"><span>title</span><span class="er-type">TEXT</span></div>
+        <div class="er-row"><span>description</span><span class="er-type">TEXT</span></div>
+        <div class="er-row"><span>icon_name</span><span class="er-type">TEXT default 'menu_book'</span></div>
+        <div class="er-row"><span>display_order</span><span class="er-type">INTEGER</span></div>
+        <div class="er-row"><span>is_active</span><span class="er-type">INTEGER 0|1</span></div>
+      </div>
+
+      <div class="er-table aux">
+        <div class="er-head">library_steps</div>
+        <div class="er-row pk"><span>id</span><span class="er-type">INTEGER PK AI</span></div>
+        <div class="er-row"><span>step_number</span><span class="er-type">INTEGER</span></div>
+        <div class="er-row"><span>title, description</span><span class="er-type">TEXT, TEXT</span></div>
+        <div class="er-row"><span>icon_name</span><span class="er-type">TEXT default 'search'</span></div>
+        <div class="er-row"><span>display_order</span><span class="er-type">INTEGER</span></div>
+        <div class="er-row"><span>is_active</span><span class="er-type">INTEGER 0|1</span></div>
+      </div>
+
+      <div class="er-table aux">
+        <div class="er-head">contact_messages</div>
+        <div class="er-row pk"><span>id</span><span class="er-type">INTEGER PK AI</span></div>
+        <div class="er-row"><span>name, email</span><span class="er-type">TEXT, TEXT</span></div>
+        <div class="er-row"><span>subject, message</span><span class="er-type">TEXT, TEXT</span></div>
+        <div class="er-row"><span>submitted_at</span><span class="er-type">INTEGER ms</span></div>
+        <div class="er-row"><span>is_handled</span><span class="er-type">INTEGER 0|1</span></div>
+      </div>
+
+    </div>
+
+    <div class="er-legend">
+      <div class="er-legend-item">
+        <div class="er-legend-swatch" style="background: var(--burgundy); border-color: var(--accent-dark);"></div>
+        <span><b>Core entities</b> (referenced by FK)</span>
+      </div>
+      <div class="er-legend-item">
+        <div class="er-legend-swatch" style="background: var(--slate); border-color: var(--slate);"></div>
+        <span><b>Auxiliary</b> (settings, audit, landing-page content)</span>
+      </div>
+      <div class="er-legend-item">
+        <div class="er-legend-swatch" style="background: var(--primary); border-color: var(--primary);"></div>
+        <span><b>PK</b> primary key &nbsp;·&nbsp; <span style="color: var(--burgundy); font-weight: 700;">FK</span> foreign key</span>
+      </div>
+    </div>
+
+    <div class="er-relations">
+      <div class="rel-line"><span class="rel-arrow">▸</span> loans.user_id <b>→</b> users.id &nbsp;&nbsp; <span style="color: var(--slate);">ON UPDATE CASCADE · ON DELETE RESTRICT (can't delete user with loan history)</span></div>
+      <div class="rel-line"><span class="rel-arrow">▸</span> loans.book_id <b>→</b> books.id &nbsp;&nbsp; <span style="color: var(--slate);">ON UPDATE CASCADE · ON DELETE RESTRICT</span></div>
+      <div class="rel-line"><span class="rel-arrow">▸</span> loans.issued_by <b>→</b> users.id &nbsp;&nbsp; <span style="color: var(--slate);">ON UPDATE CASCADE · ON DELETE RESTRICT</span></div>
+      <div class="rel-line"><span class="rel-arrow">▸</span> books.category_id <b>→</b> categories.id &nbsp;&nbsp; <span style="color: var(--slate);">ON UPDATE CASCADE · ON DELETE SET NULL</span></div>
+      <div class="rel-line"><span class="rel-arrow">▸</span> notifications.user_id <b>→</b> users.id &nbsp;&nbsp; <span style="color: var(--slate);">ON UPDATE CASCADE · ON DELETE CASCADE</span></div>
+      <div class="rel-line"><span class="rel-arrow">▸</span> activity_logs.user_id <b>→</b> users.id &nbsp;&nbsp; <span style="color: var(--slate);">ON UPDATE CASCADE · ON DELETE SET NULL (audit trail survives user deletion)</span></div>
+    </div>
+  </div>
+
+  <!-- ============== 3. SEQUENCE DIAGRAM ============== -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">03</span>
+      <h2 class="section-title">Loan Issue Workflow — Transactional Sequence</h2>
+      <span class="section-sub">POST /api/loans/issue · atomic · 8 steps · rolls back on any failure</span>
+    </div>
+
+    <div class="seq">
+      <div class="seq-lanes">
+        <div class="seq-lane-head"><span class="lane-icon">📱</span>Flutter<br>App</div>
+        <div class="seq-lane-head"><span class="lane-icon">🛡</span>Express<br>Middleware</div>
+        <div class="seq-lane-head"><span class="lane-icon">🛣</span>loanRoutes<br>/issue</div>
+        <div class="seq-lane-head"><span class="lane-icon">📖</span>loanService<br>.issue()</div>
+        <div class="seq-lane-head"><span class="lane-icon">🗄</span>SQLite<br>(transaction)</div>
+        <div class="seq-lane-head"><span class="lane-icon">📤</span>Response</div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">1</div>
+        <div class="seq-desc">
+          <strong>Flutter</strong> <span class="seq-arrow">→</span> <code>POST /api/loans/issue</code> with body <code>{ userId, bookId, overrideLoanDays? }</code> and header <code>Authorization: Bearer eyJ...</code>
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">2</div>
+        <div class="seq-desc">
+          <strong>requireAuth</strong> verifies JWT <span class="seq-arrow">→</span> extracts <code>req.user = { id, role, username }</code>. 401 if expired/invalid.
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">3</div>
+        <div class="seq-desc">
+          <strong>requireLibrarianOrAdmin</strong> checks <code>req.user.role ∈ (librarian, admin)</code> <span class="seq-arrow">→</span> 403 if student tries to issue.
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">4</div>
+        <div class="seq-desc">
+          <strong>validate</strong> runs express-validator on body <span class="seq-arrow">→</span> 400 if userId/bookId missing or non-integer.
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">5</div>
+        <div class="seq-desc tx">
+          <strong>loanService.issue()</strong> opens <code>db.transaction(() => { ... })()</code> <span class="seq-arrow">→</span> <b>TX BEGIN</b>. Any throw below = full rollback.
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">6</div>
+        <div class="seq-desc check">
+          <strong>TX step 1:</strong> Reconcile overdue <span class="seq-arrow">→</span> <code>UPDATE loans SET status='overdue' WHERE status='active' AND due_date &lt; now</code>.
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">7</div>
+        <div class="seq-desc check">
+          <strong>TX step 2:</strong> <code>SELECT * FROM users WHERE id=? AND is_active=1</code> <span class="seq-arrow">→</span> 404 USER_NOT_FOUND if missing.
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">8</div>
+        <div class="seq-desc check">
+          <strong>TX step 3:</strong> <code>SELECT * FROM books WHERE id=?</code> <span class="seq-arrow">→</span> 404 BOOK_NOT_FOUND if missing; 409 NO_COPIES if <code>available_quantity = 0</code>.
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">9</div>
+        <div class="seq-desc check">
+          <strong>TX step 4:</strong> <code>SELECT COUNT(*) FROM loans WHERE user_id=? AND status IN ('active','overdue')</code> <span class="seq-arrow">→</span> 409 LIMIT_EXCEEDED if ≥ max (default 3).
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">10</div>
+        <div class="seq-desc tx">
+          <strong>TX step 5 — CAS decrement:</strong> <code>UPDATE books SET available_quantity = available_quantity - 1 WHERE id=? AND available_quantity &gt; 0</code> <span class="seq-arrow">→</span> if <code>changes() = 0</code> throw 409 RACE (concurrent issue grabbed last copy).
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">11</div>
+        <div class="seq-desc tx">
+          <strong>TX step 6:</strong> <code>INSERT INTO loans (user_id, book_id, issued_by, issue_date, due_date, status) VALUES (..., 'active')</code> <span class="seq-arrow">→</span> captures <code>lastInsertRowid</code>.
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">12</div>
+        <div class="seq-desc tx">
+          <strong>TX step 7:</strong> <code>INSERT INTO notifications (user_id, title='Book Issued', message='...', ...)</code> <span class="seq-arrow">→</span> student sees confirmation in their inbox.
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">13</div>
+        <div class="seq-desc tx">
+          <strong>TX step 8:</strong> <code>INSERT INTO activity_logs (user_id=librarianId, action='loan_issue', details='Issued book #X "..." to user #Y. Due ...')</code> <span class="seq-arrow">→</span> audit trail entry.
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">14</div>
+        <div class="seq-desc tx">
+          <strong>TX COMMIT</strong> <span class="seq-arrow">→</span> all 8 steps atomic. If anything between step 5 and here threw, ROLLBACK undoes the decrement, the loan row, the notification, AND the activity log — no partial state.
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">15</div>
+        <div class="seq-desc">
+          <strong>loanRoutes</strong> <span class="seq-arrow">→</span> returns <code>201 Created</code> with the loan row JSON.
+        </div>
+      </div>
+
+      <div class="seq-step">
+        <div class="seq-num">16</div>
+        <div class="seq-desc fail">
+          <strong>On any failure:</strong> the <code>next(err)</code> chain calls <code>errorHandler</code> <span class="seq-arrow">→</span> maps <code>AppError</code> to its status code, or SQLite constraint to 409, and returns JSON <code>{ error, code }</code>. The Flutter app shows the user a friendly message.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============== 4. FILE STRUCTURE ============== -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">04</span>
+      <h2 class="section-title">Project Structure</h2>
+      <span class="section-sub">Feature-based · separation of concerns · 42 tracked files</span>
+    </div>
+
+    <div class="tree">
+<span class="tree-line"><span class="tree-dir">iulms-backend/</span></span>
+<span class="tree-line">├── <span class="tree-file">package.json</span>          <span class="tree-comment"># deps + scripts (start, dev, migrate, seed, setup, test)</span></span>
+<span class="tree-line">├── <span class="tree-file">.env.example</span>           <span class="tree-comment"># env template — copy to .env and edit</span></span>
+<span class="tree-line">├── <span class="tree-file">.gitignore</span>             <span class="tree-comment"># node_modules/, data/, .env, etc.</span></span>
+<span class="tree-line">├── <span class="tree-file">README.md</span>              <span class="tree-comment"># installation + deployment + API summary</span></span>
+<span class="tree-line">├── <span class="tree-file">jest.config.cjs</span>        <span class="tree-comment"># Jest config + per-suite DB isolation</span></span>
+<span class="tree-line">├── <span class="tree-dir">docs/</span></span>
+<span class="tree-line">│   └── <span class="tree-file">API.md</span>             <span class="tree-comment"># full endpoint reference with examples</span></span>
+<span class="tree-line">├── <span class="tree-dir">src/</span></span>
+<span class="tree-line">│   ├── <span class="tree-file">server.js</span>         <span class="tree-comment"># entry point — boots + graceful shutdown (SIGINT/SIGTERM)</span></span>
+<span class="tree-line">│   ├── <span class="tree-file">app.js</span>            <span class="tree-comment"># Express app builder (helmet, cors, morgan, rate limit)</span></span>
+<span class="tree-line">│   ├── <span class="tree-dir">config/</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">env.js</span>         <span class="tree-comment"># dotenv loader with safe defaults</span></span>
+<span class="tree-line">│   │   └── <span class="tree-file">constants.js</span>   <span class="tree-comment"># roles, action keys, default settings/services/steps</span></span>
+<span class="tree-line">│   ├── <span class="tree-dir">db/</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">connection.js</span>  <span class="tree-comment"># better-sqlite3 wrapper (WAL, FK on, schema apply)</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">schema.sql</span>     <span class="tree-comment"># 10 tables, indexes, FKs, CHECKs</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">migrate.js</span>    <span class="tree-comment"># `npm run migrate` — idempotent schema apply</span></span>
+<span class="tree-line">│   │   └── <span class="tree-file">seed.js</span>        <span class="tree-comment"># `npm run seed` — admin + categories + services + steps + settings</span></span>
+<span class="tree-line">│   ├── <span class="tree-dir">middleware/</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">auth.js</span>        <span class="tree-comment"># requireAuth — verifies Bearer JWT</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">role.js</span>        <span class="tree-comment"># requireRole / requireAdmin / ownerOrStaff</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">validate.js</span>    <span class="tree-comment"># express-validator result helper</span></span>
+<span class="tree-line">│   │   └── <span class="tree-file">errorHandler.js</span> <span class="tree-comment"># notFound + centralised errors + AppError</span></span>
+<span class="tree-line">│   ├── <span class="tree-dir">models/</span>               <span class="tree-comment"># pure SQL data access (no business logic)</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">userModel.js</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">bookModel.js</span>    <span class="tree-comment"># BookModel + CategoryModel</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">loanModel.js</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">auxModels.js</span>   <span class="tree-comment"># Notification + ActivityLog + Setting</span></span>
+<span class="tree-line">│   │   └── <span class="tree-file">libraryModels.js</span> <span class="tree-comment"># Service + Step + ContactMessage</span></span>
+<span class="tree-line">│   ├── <span class="tree-dir">services/</span>             <span class="tree-comment"># business logic + transactions</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">authService.js</span>  <span class="tree-comment"># JWT, bcrypt, profile, user CRUD</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">bookService.js</span>  <span class="tree-comment"># CRUD, ISBN unique, delete-guard</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">loanService.js</span>  <span class="tree-comment"># transactional issue/return with CAS</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">libraryInfoService.js</span> <span class="tree-comment"># services/steps/contact CRUD</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">reportService.js</span> <span class="tree-comment"># dashboard, popular, CSV</span></span>
+<span class="tree-line">│   │   └── <span class="tree-file">auxServices.js</span> <span class="tree-comment"># Notification + ActivityLog services</span></span>
+<span class="tree-line">│   ├── <span class="tree-dir">routes/</span>               <span class="tree-comment"># ~40 REST endpoints</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">index.js</span>       <span class="tree-comment"># mounts /api/auth, /api/books, /api/loans, /api, /api/reports</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">authRoutes.js</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">bookRoutes.js</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">loanRoutes.js</span></span>
+<span class="tree-line">│   │   ├── <span class="tree-file">libraryRoutes.js</span> <span class="tree-comment"># notifications, activity log, admin library info</span></span>
+<span class="tree-line">│   │   └── <span class="tree-file">reportRoutes.js</span></span>
+<span class="tree-line">│   └── <span class="tree-dir">utils/</span></span>
+<span class="tree-line">│       ├── <span class="tree-file">hash.js</span>         <span class="tree-comment"># bcrypt wrapper (10 salt rounds)</span></span>
+<span class="tree-line">│       ├── <span class="tree-file">jwt.js</span>          <span class="tree-comment"># sign + verify JWT</span></span>
+<span class="tree-line">│       └── <span class="tree-file">csv.js</span>          <span class="tree-comment"># RFC-4180 CSV serializer</span></span>
+<span class="tree-line">└── <span class="tree-dir">tests/</span></span>
+<span class="tree-line">    ├── <span class="tree-file">jest.setup.cjs</span>     <span class="tree-comment"># global env reset before any suite</span></span>
+<span class="tree-line">    ├── <span class="tree-file">auth.test.js</span>      <span class="tree-comment"># 7 tests — login, /me, role gate</span></span>
+<span class="tree-line">    └── <span class="tree-file">books.test.js</span>     <span class="tree-comment"># 10 tests — CRUD, ISBN dup, loan tx, out-of-stock</span></span>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-v">42</div>
+        <div class="stat-l">files tracked</div>
+      </div>
+      <div class="stat">
+        <div class="stat-v">40+</div>
+        <div class="stat-l">REST endpoints</div>
+      </div>
+      <div class="stat">
+        <div class="stat-v">10</div>
+        <div class="stat-l">database tables</div>
+      </div>
+      <div class="stat">
+        <div class="stat-v">17/17</div>
+        <div class="stat-l">tests passing</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  IULMS Backend · Node.js + Express + better-sqlite3 · JWT + Bcrypt · Production-grade REST API<br>
+  <span class="pal">
+    Color palette: <span style="color:#1E3A5F;">#1E3A5F</span> navy ·
+    <span style="color:#C9A961;">#C9A961</span> gold ·
+    <span style="color:#FAF8F3;">#FAF8F3</span> cream ·
+    <span style="color:#7B2D3E;">#7B2D3E</span> burgundy ·
+    <span style="color:#2E7D52;">#2E7D52</span> success
+  </span><br>
+  Typography: Playfair Display (headings) · PT Serif (body) · JetBrains Mono (code)<br>
+  Pushed to: github.com/DiresGobale/MobileAppLaybraryManagementSystm · branch <code style="font-family: 'JetBrains Mono', monospace; color: var(--accent);">backend</code>
+</div>
+
+</body>
+</html>
